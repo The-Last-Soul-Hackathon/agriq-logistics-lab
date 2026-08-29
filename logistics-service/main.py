@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
-from routing import get_route, get_distance_matrix
+from routing import get_route, get_distance_matrix, get_distance_duration_matrix, get_distance_duration_matrix
 from optimizer import optimize_routes
 from pickup_optimizer import optimize_pickup_routes
 from logistics_cost import calculate_route_cost
@@ -219,3 +219,55 @@ def recommend(data: RecommendRequest):
         results.append({"buyer": buyer.name, "price_per_kg": buyer.price_per_kg, "gross_revenue": round(revenue, 2), "logistics_cost": round(logistics_cost, 2), "net_revenue": round(net_revenue, 2), "net_per_kg": round(net_revenue / quantity, 2), "optimization": optimization})
     results.sort(key=lambda x: x["net_per_kg"], reverse=True)
     return {"recommended_buyer": results[0]["buyer"], "recommended_net_per_kg": results[0]["net_per_kg"], "buyers": results}
+
+from time_fleet_optimizer import optimize_fleet_with_time
+
+class TimeFleetRequest(BaseModel):
+    pickup_locations: List[List[float]]
+    demands: List[int]
+    vehicles: List[dict]
+    buyer: List[float]
+
+@app.post("/optimize-time")
+def optimize_time(data: TimeFleetRequest):
+    locations = data.pickup_locations + [data.buyer]
+    demands = data.demands + [0]
+    distances, durations = get_distance_duration_matrix(locations)
+    expanded_vehicles = []
+    for vehicle in data.vehicles:
+        for i in range(int(vehicle.get("count", 1))):
+            expanded_vehicles.append({**vehicle, "name": str(vehicle["name"]) + " #" + str(i + 1)})
+    result = optimize_fleet_with_time(distances, durations, demands, expanded_vehicles, len(locations) - 1)
+    return {"distance_matrix_km": distances, "duration_matrix_minutes": durations, "optimization": result}
+
+from time_fleet_optimizer import optimize_fleet_with_time
+
+class TimeRecommendRequest(BaseModel):
+    pickup_locations: List[List[float]]
+    demands: List[int]
+    vehicles: List[dict]
+    buyers: List[Buyer]
+
+@app.post("/recommend-time")
+def recommend_time(data: TimeRecommendRequest):
+    quantity = sum(data.demands)
+    results = []
+    for buyer in data.buyers:
+        locations = data.pickup_locations + [[buyer.lat, buyer.lon]]
+        demands = data.demands + [0]
+        distances, durations = get_distance_duration_matrix(locations)
+        expanded_vehicles = []
+        for vehicle in data.vehicles:
+            for i in range(int(vehicle.get("count", 1))):
+                expanded_vehicles.append({**vehicle, "name": str(vehicle["name"]) + " #" + str(i + 1)})
+        optimization = optimize_fleet_with_time(distances, durations, demands, expanded_vehicles, len(locations) - 1)
+        if optimization.get("status") != "success":
+            results.append({"buyer": buyer.name, "price_per_kg": buyer.price_per_kg, "feasible": False, "reason": "No route satisfies vehicle capacity and time constraints"})
+            continue
+        logistics_cost = optimization["total_logistics_cost"]
+        revenue = quantity * buyer.price_per_kg
+        net_revenue = revenue - logistics_cost
+        results.append({"buyer": buyer.name, "price_per_kg": buyer.price_per_kg, "feasible": True, "gross_revenue": round(revenue, 2), "logistics_cost": round(logistics_cost, 2), "net_revenue": round(net_revenue, 2), "net_per_kg": round(net_revenue / quantity, 2), "optimization": optimization})
+    feasible = [x for x in results if x.get("feasible")]
+    feasible.sort(key=lambda x: x["net_per_kg"], reverse=True)
+    return {"recommended_buyer": feasible[0]["buyer"] if feasible else None, "recommended_net_per_kg": feasible[0]["net_per_kg"] if feasible else None, "buyers": feasible + [x for x in results if not x.get("feasible")]}
