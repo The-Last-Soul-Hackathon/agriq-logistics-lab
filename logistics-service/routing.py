@@ -14,3 +14,13 @@ def get_distance_matrix(locations):
     response.raise_for_status()
     data = response.json()
     return [[round(distance / 1000, 2) for distance in row] for row in data["distances"]]
+
+def get_distance_duration_matrix(locations):
+    coordinates = ";".join(f"{lon},{lat}" for lat, lon in locations)
+    url = f"https://router.project-osrm.org/table/v1/driving/{coordinates}?annotations=distance,duration"
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+    data = response.json()
+    distances = [[round(x / 1000, 2) for x in row] for row in data["distances"]]
+    durations = [[round(x / 60, 2) for x in row] for row in data["durations"]]
+    return distances, durations
