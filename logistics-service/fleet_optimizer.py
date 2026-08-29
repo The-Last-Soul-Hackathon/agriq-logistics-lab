@@ -7,7 +7,7 @@ def optimize_fleet(distance_matrix, demands, vehicles, buyer):
     ends = [buyer] * num_vehicles
     capacities = [int(v["capacity_kg"]) for v in vehicles]
     costs = [float(v["cost_per_km"]) for v in vehicles]
-    fixed_costs = [float(v.get("fixed_cost", 0)) for v in vehicles]
+    fixed_costs = [float(v.get("fixed_cost", 0)) + float(v.get("loading_cost", 0)) + float(v.get("unloading_cost", 0)) + float(v.get("toll", 0)) for v in vehicles]
 
     manager = pywrapcp.RoutingIndexManager(num_locations, num_vehicles, starts, ends)
     routing = pywrapcp.RoutingModel(manager)

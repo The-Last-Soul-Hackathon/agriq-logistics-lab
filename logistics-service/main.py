@@ -193,3 +193,29 @@ def optimize_fleet_count(data: FleetCountRequest):
     matrix = get_distance_matrix(locations)
     result = optimize_fleet(matrix, demands, expanded_vehicles, len(locations) - 1)
     return {"distance_matrix_km": matrix, "optimization": result}
+
+class RecommendRequest(BaseModel):
+    pickup_locations: List[List[float]]
+    demands: List[int]
+    vehicles: List[dict]
+    buyers: List[Buyer]
+
+@app.post("/recommend")
+def recommend(data: RecommendRequest):
+    quantity = sum(data.demands)
+    results = []
+    for buyer in data.buyers:
+        locations = data.pickup_locations + [[buyer.lat, buyer.lon]]
+        demands = data.demands + [0]
+        matrix = get_distance_matrix(locations)
+        expanded_vehicles = []
+        for vehicle in data.vehicles:
+            for i in range(int(vehicle.get("count", 1))):
+                expanded_vehicles.append({**vehicle, "name": str(vehicle["name"]) + " #" + str(i + 1)})
+        optimization = optimize_fleet(matrix, demands, expanded_vehicles, len(locations) - 1)
+        logistics_cost = optimization.get("total_logistics_cost", 0)
+        revenue = quantity * buyer.price_per_kg
+        net_revenue = revenue - logistics_cost
+        results.append({"buyer": buyer.name, "price_per_kg": buyer.price_per_kg, "gross_revenue": round(revenue, 2), "logistics_cost": round(logistics_cost, 2), "net_revenue": round(net_revenue, 2), "net_per_kg": round(net_revenue / quantity, 2), "optimization": optimization})
+    results.sort(key=lambda x: x["net_per_kg"], reverse=True)
+    return {"recommended_buyer": results[0]["buyer"], "recommended_net_per_kg": results[0]["net_per_kg"], "buyers": results}
