@@ -175,3 +175,21 @@ def optimize_fleet_api(data: FleetOptimizeRequest):
     matrix = get_distance_matrix(locations)
     result = optimize_fleet(matrix, demands, data.vehicles, len(locations) - 1)
     return {"distance_matrix_km": matrix, "optimization": result}
+
+class FleetCountRequest(BaseModel):
+    pickup_locations: List[List[float]]
+    demands: List[int]
+    vehicles: List[dict]
+    buyer: List[float]
+
+@app.post("/optimize-fleet-count")
+def optimize_fleet_count(data: FleetCountRequest):
+    locations = data.pickup_locations + [data.buyer]
+    demands = data.demands + [0]
+    expanded_vehicles = []
+    for vehicle in data.vehicles:
+        for i in range(int(vehicle.get("count", 1))):
+            expanded_vehicles.append({**vehicle, "name": str(vehicle["name"]) + " #" + str(i + 1)})
+    matrix = get_distance_matrix(locations)
+    result = optimize_fleet(matrix, demands, expanded_vehicles, len(locations) - 1)
+    return {"distance_matrix_km": matrix, "optimization": result}
