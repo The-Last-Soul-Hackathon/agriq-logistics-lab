@@ -5,6 +5,7 @@ from routing import get_route, get_distance_matrix
 from optimizer import optimize_routes
 from pickup_optimizer import optimize_pickup_routes
 from logistics_cost import calculate_route_cost
+from fleet_optimizer import optimize_fleet
 from profit import calculate_transport_cost, calculate_profit
 
 app = FastAPI(title='AgriQ Logistics')
@@ -159,3 +160,18 @@ def compare_final(data: MultiBuyerRequest):
         results.append({'buyer': buyer.name, 'price_per_kg': buyer.price_per_kg, 'gross_revenue': round(revenue, 2), 'total_logistics_cost': round(total_cost, 2), 'net_revenue': round(net_revenue, 2), 'net_per_kg': round(net_revenue / quantity, 2), 'optimization': result})
     results.sort(key=lambda x: x['net_per_kg'], reverse=True)
     return {'recommended_buyer': results[0]['buyer'], 'recommended_net_per_kg': results[0]['net_per_kg'], 'buyers': results}
+
+
+class FleetOptimizeRequest(BaseModel):
+    pickup_locations: List[List[float]]
+    demands: List[int]
+    vehicles: List[dict]
+    buyer: List[float]
+
+@app.post("/optimize-fleet")
+def optimize_fleet_api(data: FleetOptimizeRequest):
+    locations = data.pickup_locations + [data.buyer]
+    demands = data.demands + [0]
+    matrix = get_distance_matrix(locations)
+    result = optimize_fleet(matrix, demands, data.vehicles, len(locations) - 1)
+    return {"distance_matrix_km": matrix, "optimization": result}
