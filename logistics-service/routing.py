@@ -6,3 +6,11 @@ def get_route(start_lat, start_lon, end_lat, end_lon):
     response.raise_for_status()
     route = response.json()["routes"][0]
     return {"distance_km": round(route["distance"] / 1000, 2), "duration_minutes": round(route["duration"] / 60, 2)}
+
+def get_distance_matrix(locations):
+    coordinates = ";".join(f"{lon},{lat}" for lat, lon in locations)
+    url = f"https://router.project-osrm.org/table/v1/driving/{coordinates}?annotations=distance"
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+    data = response.json()
+    return [[round(distance / 1000, 2) for distance in row] for row in data["distances"]]

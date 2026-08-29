@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
-from routing import get_route
+from routing import get_route, get_distance_matrix
 from optimizer import optimize_routes
 from pydantic import BaseModel
 from typing import List
@@ -49,3 +49,15 @@ def compare(data: CompareRequest):
 @app.post("/optimize")
 def optimize(data: OptimizeRequest):
     return optimize_routes(data.distance_matrix, data.demands, data.vehicle_capacities)
+
+
+class RealOptimizeRequest(BaseModel):
+    locations: List[List[float]]
+    demands: List[int]
+    vehicle_capacities: List[int]
+
+@app.post("/optimize-real")
+def optimize_real(data: RealOptimizeRequest):
+    matrix = get_distance_matrix(data.locations)
+    result = optimize_routes(matrix, data.demands, data.vehicle_capacities)
+    return {"distance_matrix_km": matrix, "optimization": result}

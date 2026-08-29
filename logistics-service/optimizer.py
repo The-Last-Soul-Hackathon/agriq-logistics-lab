@@ -9,7 +9,7 @@ def optimize_routes(distance_matrix, demands, vehicle_capacities, depot=0):
     def distance_callback(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        return int(distance_matrix[from_node][to_node])
+        return int(distance_matrix[from_node][to_node] * 1000)
 
     distance_callback_index = routing.RegisterTransitCallback(distance_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(distance_callback_index)
@@ -43,6 +43,6 @@ def optimize_routes(distance_matrix, demands, vehicle_capacities, depot=0):
             distance += routing.GetArcCostForVehicle(previous_index, index, vehicle_id)
         route.append(manager.IndexToNode(index))
         if len(route) > 2:
-            routes.append({"vehicle": vehicle_id + 1, "route": route, "load_kg": load, "distance_km": distance})
+            routes.append({"vehicle": vehicle_id + 1, "route": route, "load_kg": load, "distance_km": round(distance / 1000, 2)})
 
-    return {"status": "success", "routes": routes, "total_distance_km": sum(r["distance_km"] for r in routes)}
+    return {"status": "success", "routes": routes, "total_distance_km": round(sum(r["distance_km"] for r in routes), 2)}
