@@ -2,9 +2,17 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 from routing import get_route
+from optimizer import optimize_routes
+from pydantic import BaseModel
+from typing import List
 from profit import calculate_transport_cost, calculate_profit
 
 app = FastAPI(title="AgriQ Logistics")
+
+class OptimizeRequest(BaseModel):
+    distance_matrix: List[List[float]]
+    demands: List[int]
+    vehicle_capacities: List[int]
 
 class Buyer(BaseModel):
     name: str
@@ -36,3 +44,8 @@ def compare(data: CompareRequest):
         results.append({"buyer": buyer.name, "price_per_kg": buyer.price_per_kg, **route, "transport_cost": transport, **profit})
     results.sort(key=lambda x: x["net_per_kg"], reverse=True)
     return {"recommended_buyer": results[0]["buyer"], "buyers": results}
+
+
+@app.post("/optimize")
+def optimize(data: OptimizeRequest):
+    return optimize_routes(data.distance_matrix, data.demands, data.vehicle_capacities)
