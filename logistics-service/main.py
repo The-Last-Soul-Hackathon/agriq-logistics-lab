@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 from routing import get_route, get_distance_matrix, get_distance_duration_matrix, get_distance_duration_matrix
@@ -271,3 +272,7 @@ def recommend_time(data: TimeRecommendRequest):
     feasible = [x for x in results if x.get("feasible")]
     feasible.sort(key=lambda x: x["net_per_kg"], reverse=True)
     return {"recommended_buyer": feasible[0]["buyer"] if feasible else None, "recommended_net_per_kg": feasible[0]["net_per_kg"] if feasible else None, "buyers": feasible + [x for x in results if not x.get("feasible")]}
+
+@app.get("/health")
+def health():
+    return {"status": "healthy", "service": "AgriQ Logistics", "version": "1.0"}
